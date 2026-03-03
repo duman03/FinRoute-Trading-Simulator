@@ -1,10 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { theme } from '../utils/theme';
-import { calculatePortfolioValue, executeBuy, executeSell } from '../utils/tradingEngine';
+import { calculatePortfolioValue, executeBuyAsset, executeSellAsset } from '../utils/tradingEngine';
 
-export function TradePanel({ portfolio, currentPrice, onPortfolioChange, activePattern }) {
-  const { balance, positionSize, level, xp, totalRealizedPnl } = portfolio;
+export function TradePanel({
+  portfolio,
+  currentPrice,
+  currentAssetKey,
+  onPortfolioChange,
+  activePattern,
+  currencySymbol = '₺',
+}) {
+  const { balance, positionsByAsset = {}, pricesByAsset = {}, level, xp, totalRealizedPnl } = portfolio;
   const [buyAmount, setBuyAmount] = useState('1000');
   const [sellPercent, setSellPercent] = useState('25');
   const [recentXpGain, setRecentXpGain] = useState(0);
@@ -12,15 +19,23 @@ export function TradePanel({ portfolio, currentPrice, onPortfolioChange, activeP
   const [showXpToast, setShowXpToast] = useState(false);
   const toastTimeoutRef = useRef(null);
 
-  const portfolioValue = calculatePortfolioValue({ balance, positionSize, currentPrice });
+  const portfolioValue = calculatePortfolioValue({ balance, positionsByAsset, pricesByAsset });
+  const currentPositionQty = positionsByAsset[currentAssetKey] ?? 0;
 
   const handleBuy = () => {
     const amount = Number(buyAmount);
-    const result = executeBuy({ balance, positionSize, currentPrice, amountToInvest: amount });
+    const result = executeBuyAsset({
+      balance,
+      positionsByAsset,
+      assetKey: currentAssetKey,
+      currentPrice,
+      amountToInvest: amount,
+    });
+
     const newPortfolioValue = calculatePortfolioValue({
       balance: result.balance,
-      positionSize: result.positionSize,
-      currentPrice,
+      positionsByAsset: result.positionsByAsset,
+      pricesByAsset,
     });
 
     let bonusXp = 0;
@@ -39,7 +54,7 @@ export function TradePanel({ portfolio, currentPrice, onPortfolioChange, activeP
 
     const update = {
       balance: result.balance,
-      positionSize: result.positionSize,
+      positionsByAsset: result.positionsByAsset,
       portfolioValue: newPortfolioValue,
     };
     if (bonusXp > 0) {
@@ -52,11 +67,17 @@ export function TradePanel({ portfolio, currentPrice, onPortfolioChange, activeP
   const handleSell = () => {
     const pct = Number(sellPercent) / 100;
     const portfolioValueBefore = portfolioValue;
-    const result = executeSell({ balance, positionSize, currentPrice, percentageToSell: pct });
+    const result = executeSellAsset({
+      balance,
+      positionsByAsset,
+      assetKey: currentAssetKey,
+      currentPrice,
+      percentageToSell: pct,
+    });
     const newPortfolioValue = calculatePortfolioValue({
       balance: result.balance,
-      positionSize: result.positionSize,
-      currentPrice,
+      positionsByAsset: result.positionsByAsset,
+      pricesByAsset,
     });
     const realizedPnl = newPortfolioValue - portfolioValueBefore;
     const xpDelta = realizedPnl > 0 ? Math.floor(realizedPnl / 10) : 0;
@@ -75,7 +96,7 @@ export function TradePanel({ portfolio, currentPrice, onPortfolioChange, activeP
 
     onPortfolioChange({
       balance: result.balance,
-      positionSize: result.positionSize,
+      positionsByAsset: result.positionsByAsset,
       realizedPnl,
       xpDelta,
       portfolioValue: newPortfolioValue,
@@ -95,12 +116,15 @@ export function TradePanel({ portfolio, currentPrice, onPortfolioChange, activeP
       <View style={styles.row}>
         <View style={styles.metric}>
           <Text style={styles.metricLabel}>Serbest Bakiye</Text>
-          <Text style={styles.metricValue}>{balance.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ₺</Text>
+          <Text style={styles.metricValue}>
+            {balance.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {currencySymbol}
+          </Text>
         </View>
         <View style={styles.metric}>
           <Text style={styles.metricLabel}>Açık Pozisyon</Text>
           <Text style={styles.metricValue}>
-            {positionSize.toFixed(4)} lot / {Math.round(positionSize * currentPrice).toLocaleString('tr-TR')} ₺
+            {currentPositionQty.toFixed(4)} lot /{' '}
+            {Math.round(currentPositionQty * currentPrice).toLocaleString('tr-TR')} {currencySymbol}
           </Text>
         </View>
       </View>
@@ -108,17 +132,21 @@ export function TradePanel({ portfolio, currentPrice, onPortfolioChange, activeP
       <View style={styles.row}>
         <View style={styles.metric}>
           <Text style={styles.metricLabel}>Anlık Fiyat</Text>
-          <Text style={styles.metricValue}>{currentPrice.toFixed(2)} ₺</Text>
+          <Text style={styles.metricValue}>
+            {currentPrice.toFixed(2)} {currencySymbol}
+          </Text>
         </View>
         <View style={styles.metric}>
           <Text style={styles.metricLabel}>Portföy Değeri</Text>
-          <Text style={styles.metricValue}>{portfolioValue.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ₺</Text>
+          <Text style={styles.metricValue}>
+            {portfolioValue.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {currencySymbol}
+          </Text>
         </View>
       </View>
 
       <View style={styles.rowActions}>
         <View style={styles.actionBlock}>
-          <Text style={styles.actionLabel}>Alım Tutarı (₺)</Text>
+          <Text style={styles.actionLabel}>Alım Tutarı ({currencySymbol})</Text>
           <TextInput
             value={buyAmount}
             onChangeText={setBuyAmount}

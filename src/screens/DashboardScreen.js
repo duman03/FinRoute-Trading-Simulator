@@ -1,17 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { theme } from '../utils/theme';
 import { calculatePortfolioValue } from '../utils/tradingEngine';
 import { StatCard } from '../components/StatCard';
 import { MissionCard } from '../components/MissionCard';
 
-export function DashboardScreen({ portfolio }) {
-  const { balance, positionSize, level, xp = 0, totalRealizedPnl = 0 } = portfolio;
-  const mockCurrentPrice = 100;
+export function DashboardScreen({ portfolio, onReset }) {
+  const { balance, positionsByAsset = {}, pricesByAsset = {}, level, xp = 0, totalRealizedPnl = 0 } = portfolio;
   const portfolioValue = calculatePortfolioValue({
     balance,
-    positionSize,
-    currentPrice: mockCurrentPrice,
+    positionsByAsset,
+    pricesByAsset,
   });
 
   const unrealizedPnl = portfolioValue - 100000;
@@ -79,6 +78,12 @@ export function DashboardScreen({ portfolio }) {
           completed={xp >= 500}
         />
       </View>
+
+      {onReset && (
+        <TouchableOpacity style={styles.resetButton} onPress={onReset}>
+          <Text style={styles.resetText}>Hesabı Sıfırla</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -145,6 +150,19 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: 2,
+  },
+  resetButton: {
+    marginTop: 12,
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
+  },
+  resetText: {
+    fontSize: 12,
+    color: theme.colors.textSoft,
   },
 });
 

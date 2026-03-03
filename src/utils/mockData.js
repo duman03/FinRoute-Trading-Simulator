@@ -1,21 +1,36 @@
 export const INITIAL_PRICE = 100;
 
-export function generateNextCandle(previousClose) {
-  const base = previousClose ?? INITIAL_PRICE;
+export const ASSETS = [
+  { key: 'BCoin', label: 'B-Coin', basePrice: 100, volatility: 1.8 },
+  { key: 'TechCorp', label: 'TechCorp', basePrice: 80, volatility: 1.2 },
+  { key: 'SafeGold', label: 'SafeGold', basePrice: 60, volatility: 0.7 },
+];
 
-  const maxMove = base * 0.012; // %1.2 civarı volatilite
+export const ASSET_KEYS = ASSETS.map((a) => a.key);
+
+export function getAssetConfig(key) {
+  return ASSETS.find((a) => a.key === key) ?? ASSETS[0];
+}
+
+export function generateNextCandle(assetKey, previousClose) {
+  const config = getAssetConfig(assetKey);
+  const basePrice = config.basePrice ?? INITIAL_PRICE;
+
+  const base = previousClose ?? basePrice;
+
+  const maxMove = base * 0.01 * (config.volatility ?? 1); // volatiliteye göre oynaklık
   const closeDelta = (Math.random() * 2 - 1) * maxMove;
   let close = base + closeDelta;
-  if (close < 10) close = 10;
+  if (close < 5) close = 5;
 
   const open = base;
 
-  const highShadow = Math.random() * (base * 0.006);
-  const lowShadow = Math.random() * (base * 0.006);
+  const highShadow = Math.random() * (base * 0.006 * (config.volatility ?? 1));
+  const lowShadow = Math.random() * (base * 0.006 * (config.volatility ?? 1));
 
   const high = Math.max(open, close) + highShadow;
   let low = Math.min(open, close) - lowShadow;
-  if (low < 5) low = 5;
+  if (low < 2) low = 2;
 
   return {
     open: Number(open.toFixed(2)),
